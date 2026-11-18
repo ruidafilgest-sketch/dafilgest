@@ -54,6 +54,7 @@
     if(f.querySelector('#pzLista')) Prazos.render();
   }
   function idxDeHash(){ return idxDe(decodeURIComponent(location.hash.slice(1))); }
+  function rolaPara(h){ if(!h) return; var el=D.getElementById(h); if(!el) return; var f=el.closest('.folha'); if(!f||f.id===h) return; setTimeout(function(){ var r=el.getBoundingClientRect(), rf=f.getBoundingClientRect(); f.scrollTo({top:f.scrollTop+r.top-rf.top-100,behavior:REDUZ?'auto':'smooth'}); }, ocupado?DUR+50:60); }
   function idxDe(h){
     if(!h) return 0;
     if(h==='fim') return folhas.length-1;
@@ -127,7 +128,7 @@
     atualizaNav();
     /* chegada de outra página */
     if(ss('dfg-chega')==='1'){ ss('dfg-chega','0'); if(!REDUZ){ folhas[idx].classList.add('chega'); setTimeout(function(){ folhas[idx]&&folhas[idx].classList.remove('chega'); },1100); } }
-    setTimeout(function(){ revela(folhas[idx]); tomCabecalho(); }, 60);
+    setTimeout(function(){ revela(folhas[idx]); tomCabecalho(); rolaPara(decodeURIComponent(location.hash.slice(1))); }, 60);
     /* teclado */
     D.addEventListener('keydown',function(e){
       var t=e.target, tag=(t&&t.tagName)||''; if(/INPUT|TEXTAREA|SELECT/.test(tag)||t.isContentEditable||e.altKey||e.ctrlKey||e.metaKey) return;
@@ -144,6 +145,7 @@
     window.addEventListener('wheel',function(e){
       var agora=Date.now(), gap=agora-ult; ult=agora;
       if(e.ctrlKey) return;
+      if(e.target&&e.target.closest&&e.target.closest('.mapa')) return;
       var f=folhaAtual(), d=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY;
       if(preso){ if(gap>260&&!ocupado) preso=false; else return; }
       if(ocupado) return;
@@ -173,10 +175,10 @@
     var a=e.target.closest&&e.target.closest('a[href]'); if(!a||e.defaultPrevented||e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey||a.target==='_blank') return;
     var href=a.getAttribute('href'); if(!href||/^(mailto:|tel:|https?:|#$)/i.test(href)) return;
     var partes=href.split('#'), dest=partes[0]||pg, hash=partes[1];
-    if(dest===pg&&book){ e.preventDefault(); fechaMenu(); if(hash){ var i=idxDe(hash); if(i!==idx) mostra(i,i>idx?1:-1); } else if(idx!==0) mostra(0,-1); return; }
+    if(dest===pg&&book){ e.preventDefault(); fechaMenu(); if(hash){ var i=idxDe(hash); if(i!==idx) mostra(i,i>idx?1:-1); rolaPara(hash); } else if(idx!==0) mostra(0,-1); return; }
     if(/\.html$/.test(dest)&&book){ e.preventDefault(); irPagina(href); }
   });
-  window.addEventListener('hashchange',function(){ if(!book) return; var i=idxDeHash(); if(i!==idx) mostra(i,i>idx?1:-1); });
+  window.addEventListener('hashchange',function(){ if(!book) return; var i=idxDeHash(); if(i!==idx) mostra(i,i>idx?1:-1); rolaPara(decodeURIComponent(location.hash.slice(1))); });
   window.addEventListener('pageshow',function(e){ if(e.persisted){ H.classList.remove('saindo'); } });
 
   /* ---------- entrada cinematográfica (uma vez por visita) ---------- */
@@ -189,6 +191,16 @@
     it.addEventListener('click',abre); setTimeout(abre,2300);
   }
 
+  /* ---------- aviso: o site não usa cookies (informativo, uma vez) ---------- */
+  if(ls('dfg-aviso')!=='1'){
+    setTimeout(function(){
+      var av=D.createElement('div'); av.className='aviso'; av.setAttribute('role','dialog'); av.setAttribute('aria-label','Aviso sobre cookies');
+      av.innerHTML='<b>Este site não usa cookies.</b><p>Não usamos cookies nem ferramentas de rastreio. Guardamos apenas no seu navegador as preferências que escolher, como o modo noite.</p><div class="ac"><button type="button" class="btn btn-p">Compreendi</button><a href="privacidade.html#cookies">Saber mais</a></div>';
+      D.body.appendChild(av);
+      av.querySelector('button').addEventListener('click',function(){ ls('dfg-aviso','1'); av.remove(); });
+    }, (ss('dfg-intro')==='1'&&!D.getElementById('intro'))?900:3000);
+  }
+
   /* ---------- cartões 3D com reflexo ---------- */
   if(!REDUZ){
     D.querySelectorAll('.tilt').forEach(function(el){
@@ -199,21 +211,6 @@
       el.addEventListener('pointermove',function(e){ if(e.pointerType==='mouse') mexe(e.clientX,e.clientY); });
       el.addEventListener('pointerleave',solta);
       el.addEventListener('pointerdown',function(e){ if(e.pointerType!=='mouse'){ mexe(e.clientX,e.clientY); setTimeout(solta,650); } });
-    });
-  }
-
-  /* ---------- halo azul do cursor + botões magnéticos ---------- */
-  if(FINO&&!REDUZ){
-    var halo=D.createElement('div'); halo.className='halo'; var ponto=D.createElement('div'); ponto.className='halo-p';
-    D.body.appendChild(halo); D.body.appendChild(ponto);
-    var mx=-999,my=-999,hx=-999,hy=-999,vis=false;
-    D.addEventListener('pointermove',function(e){ if(e.pointerType!=='mouse') return; mx=e.clientX; my=e.clientY; if(!vis){ vis=true; hx=mx; hy=my; halo.classList.add('on'); ponto.classList.add('on'); } ponto.style.transform='translate('+mx+'px,'+my+'px)'; var alvo=e.target.closest&&e.target.closest('a,button,input,select,textarea,label'); ponto.classList.toggle('grande',!!alvo); });
-    D.addEventListener('pointerleave',function(){ vis=false; halo.classList.remove('on'); ponto.classList.remove('on'); });
-    D.documentElement.addEventListener('mouseleave',function(){ vis=false; halo.classList.remove('on'); ponto.classList.remove('on'); });
-    (function loop(){ hx+=(mx-hx)*.12; hy+=(my-hy)*.12; halo.style.transform='translate('+hx.toFixed(1)+'px,'+hy.toFixed(1)+'px)'; requestAnimationFrame(loop); })();
-    D.querySelectorAll('.btn,.bnav button,.tema').forEach(function(b){
-      b.addEventListener('pointermove',function(e){ var r=b.getBoundingClientRect(); var dx=e.clientX-(r.left+r.width/2), dy=e.clientY-(r.top+r.height/2); b.style.transform='translate('+(dx*.18).toFixed(1)+'px,'+(dy*.28).toFixed(1)+'px)'; });
-      b.addEventListener('pointerleave',function(){ b.style.transform=''; });
     });
   }
 
@@ -366,14 +363,32 @@
     var ETAPAS=function(){ return [[200,300,620],[VZ.x-8,VZ.y+26,230],[VZ.x-4,VZ.y+2,66]]; };
     var ease=function(t){ return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2; };
     function pulso(){ if(!svg) return; var t=(performance.now()%2200)/2200, w=svg._w||66; [VZ.an1,VZ.an2].forEach(function(c,i){ var tt=(t+i*.5)%1; c.setAttribute('r',(w*0.01+tt*w*0.07).toFixed(3)); c.setAttribute('opacity',(1-tt).toFixed(3)); }); requestAnimationFrame(pulso); }
+    /* último passo: mapa de ruas (OpenStreetMap) até à porta do gabinete */
+    var GAB=[41.36805,-8.30950], rua=null, ruaEl=D.getElementById('mapaRua'), tRua=0;
+    function ruaMostra(imediato){
+      if(!ruaEl||!window.L) return;
+      if(!rua){
+        rua=L.map(ruaEl,{center:[VZ_LAT,VZ_LON],zoom:13,zoomControl:true,scrollWheelZoom:false,attributionControl:true,zoomSnap:.25});
+        rua.zoomControl.setPosition('bottomright');
+        rua.attributionControl.setPrefix(false);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}).addTo(rua);
+        L.marker(GAB,{icon:L.divIcon({className:'pinx',html:'<i></i><b></b>',iconSize:[44,56],iconAnchor:[22,52]}),keyboard:false,title:'Dafilgest'}).addTo(rua);
+      }
+      ruaEl.classList.add('on'); box.classList.add('ruas');
+      var chip=box.querySelector('.chip span'); if(chip) chip.textContent='Rua Senhora de Lurdes';
+      rua.invalidateSize(); rua.setView([VZ_LAT,VZ_LON],imediato?18:13.5,{animate:false});
+      if(imediato) rua.setView(GAB,18,{animate:false}); else { clearTimeout(tRua); tRua=setTimeout(function(){ rua.flyTo(GAB,18,{duration:2.8}); },350); }
+    }
+    function ruaEsconde(){ if(ruaEl){ ruaEl.classList.remove('on'); box.classList.remove('ruas'); clearTimeout(tRua); } }
+    var VZ_LAT=41.3767, VZ_LON=-8.3084;
     function voar(forcar){
       if(!monta()) return; if(feito&&!forcar) return; feito=true;
-      cancelAnimationFrame(anim); var E=ETAPAS();
-      if(REDUZ){ vista(E[2][0],E[2][1],E[2][2]); estagio(2); return; }
+      cancelAnimationFrame(anim); var E=ETAPAS(); ruaEsconde();
+      if(REDUZ){ vista(E[2][0],E[2][1],E[2][2]); estagio(2); ruaMostra(true); return; }
       vista(E[0][0],E[0][1],E[0][2]); estagio(0);
       var seq=[[0,1,1700,700],[1,2,1900,900]], i=0;
       function corre(){
-        if(i>=seq.length) return; var s=seq[i], a=E[s[0]], b=E[s[1]], t0=null;
+        if(i>=seq.length){ tRua=setTimeout(function(){ ruaMostra(false); },1300); return; } var s=seq[i], a=E[s[0]], b=E[s[1]], t0=null;
         setTimeout(function(){
           (function f(t){ if(!t0) t0=t; var p=Math.min((t-t0)/s[2],1), e=ease(p);
             var w=Math.exp(Math.log(a[2])+(Math.log(b[2])-Math.log(a[2]))*e);
@@ -404,6 +419,7 @@
       if(g('_honey')) return;
       var em=g('email');
       if(!g('nome')||!g('mensagem')||(!em&&!g('telefone'))){ mostraMsg(er,'Indique o seu nome, a mensagem e pelo menos um contacto (email ou telefone).'); return; }
+      if(fm.elements.aceito&&!fm.elements.aceito.checked){ mostraMsg(er,'Para enviarmos a sua mensagem, confirme que leu a política de privacidade.'); return; }
       if(em&&!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)){ mostraMsg(er,'O email indicado não parece válido. Verifique, por favor.'); fm.elements.email.focus(); return; }
       bt.disabled=true; bt.innerHTML='A enviar…';
       var dados={ Nome:g('nome'), Email:em||'—', Telefone:g('telefone')||'—', 'Empresa / NIF':g('empresa')||'—', Assunto:g('servico')||'Geral', Mensagem:g('mensagem'),
